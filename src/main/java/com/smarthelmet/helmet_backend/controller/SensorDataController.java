@@ -54,6 +54,12 @@ public class SensorDataController {
 
                 // 🔴 Reuse NotificationService for SMS
                 notificationService.sendAlertSms(worker, alert);
+                List<Worker> allWorkers = workerRepository.findAll();
+                for (Worker w : allWorkers) {
+                if (!w.getHelmetId().equals(worker.getHelmetId())) {
+                    notificationService.sendAlertSms(w, alert);
+                }
+                }
             });
         }
 
