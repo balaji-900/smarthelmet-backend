@@ -53,7 +53,7 @@ public class AlertController {
                     List<Worker> allWorkers = workerRepository.findAll();
                     for (Worker w : allWorkers) {
                         if (!w.getHelmetId().equals(worker.getHelmetId())) {
-                        notificationService.sendAlertSms(w, alert);
+                        notificationService.sendAlertToWorker(w, alert);
                         }
                     }
 
