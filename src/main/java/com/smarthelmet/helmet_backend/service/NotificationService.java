@@ -26,6 +26,16 @@ public class NotificationService {
 
         sendSms(worker.getFamilyPhoneNumber(), sms);
     }
+    // 🚨 Alert SMS to worker (not family)
+    public void sendAlertToWorker(Worker worker, Alert alert) {
+        String sms = "🚨 ALERT!\nWorker: " + worker.getName() +
+            "\nHelmet: " + worker.getHelmetId() +
+            "\nMessage: " + alert.getMessage() +
+            "\nLocation: " + alert.getLat() + "," + alert.getLng();
+
+        sendSms(worker.getPhoneNumber(), sms); // 👈 send to worker’s phone
+    }
+
 
     // ✅ Safe SMS
     public void sendSafeSms(Worker worker, Alert alert) {
