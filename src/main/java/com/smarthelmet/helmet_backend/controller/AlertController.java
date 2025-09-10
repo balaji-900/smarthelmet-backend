@@ -1,13 +1,14 @@
-package com.example.helmetbackend.controller;
+package com.smarthelmet.helmet_backend.controller;
 
-import com.example.helmetbackend.model.Alert;
-import com.example.helmetbackend.repository.AlertRepository;
-import com.example.helmetbackend.service.NotificationService;
+import com.smarthelmet.helmet_backend.model.Alert;
+import com.smarthelmet.helmet_backend.repository.AlertRepository;
+import com.smarthelmet.helmet_backend.service.NotificationService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.List;
 
 @RestController
 @RequestMapping("/alerts")
@@ -17,6 +18,7 @@ public class AlertController {
     private final NotificationService notificationService;
     private final SimpMessagingTemplate messagingTemplate;
 
+    @Autowired
     public AlertController(AlertRepository alertRepository,
                            NotificationService notificationService,
                            SimpMessagingTemplate messagingTemplate) {
@@ -25,37 +27,23 @@ public class AlertController {
         this.messagingTemplate = messagingTemplate;
     }
 
-    @PostMapping
-    public String createAlert(@RequestBody Alert alert) {
-        alert.setCreatedAt(LocalDateTime.now());
-        Alert saved = alertRepository.save(alert);
-
-        // notify
-        notificationService.notifyFamily(saved);
-        notificationService.notifyCoworkers(saved);
-
-        // broadcast
-        messagingTemplate.convertAndSend("/topic/alerts", saved);
-
-        return "✅ Alert created and notifications sent.";
+    @GetMapping
+    public List<Alert> getAllAlerts() {
+        return alertRepository.findAll();
     }
 
     @PostMapping("/{id}/ack")
-    public String acknowledgeAlert(@PathVariable Long id) {
-        Optional<Alert> optional = alertRepository.findById(id);
-        if (optional.isPresent()) {
-            Alert alert = optional.get();
-            alert.setAcknowledged(true);
-            alert.setAcknowledgedAt(LocalDateTime.now());
-            Alert saved = alertRepository.save(alert);
+    public Alert acknowledgeAlert(@PathVariable Long id) {
+        Alert alert = alertRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Alert not found"));
 
-            // notify + broadcast updated alert
-            notificationService.notifyCoworkers(saved);
-            notificationService.notifyFamily(saved);
-            messagingTemplate.convertAndSend("/topic/alerts", saved);
+        alert.setAcknowledged(true);
+        alert.setAcknowledgedAt(LocalDateTime.now());
+        Alert saved = alertRepository.save(alert);
 
-            return "✅ Alert acknowledged.";
-        }
-        return "❌ Alert not found.";
+        // Broadcast updated alert
+        messagingTemplate.convertAndSend("/topic/alerts", saved);
+
+        return saved;
     }
 }
