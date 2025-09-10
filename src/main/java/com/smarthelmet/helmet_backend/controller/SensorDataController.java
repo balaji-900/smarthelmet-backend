@@ -1,62 +1,57 @@
-package com.smarthelmet.helmet_backend.controller;
+package com.example.helmetbackend.controller;
 
-import com.smarthelmet.helmet_backend.model.Alert;
-import com.smarthelmet.helmet_backend.model.SensorData;
-import com.smarthelmet.helmet_backend.model.Worker;
-import com.smarthelmet.helmet_backend.repository.SensorDataRepository;
-import com.smarthelmet.helmet_backend.repository.WorkerRepository;
-import com.smarthelmet.helmet_backend.service.NotificationService;
-import org.springframework.http.ResponseEntity;
+import com.example.helmetbackend.model.Alert;
+import com.example.helmetbackend.model.SensorData;
+import com.example.helmetbackend.repository.AlertRepository;
+import com.example.helmetbackend.repository.SensorDataRepository;
+import com.example.helmetbackend.service.NotificationService;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/sensor-data")
 public class SensorDataController {
 
     private final SensorDataRepository sensorDataRepository;
-    private final WorkerRepository workerRepository;
+    private final AlertRepository alertRepository;
     private final NotificationService notificationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public SensorDataController(SensorDataRepository sensorDataRepository,
-                                WorkerRepository workerRepository,
-                                NotificationService notificationService) {
+                                AlertRepository alertRepository,
+                                NotificationService notificationService,
+                                SimpMessagingTemplate messagingTemplate) {
         this.sensorDataRepository = sensorDataRepository;
-        this.workerRepository = workerRepository;
+        this.alertRepository = alertRepository;
         this.notificationService = notificationService;
-    }
-
-    @GetMapping("/{helmetId}")
-    public List<SensorData> getSensorDataByHelmetId(@PathVariable String helmetId) {
-        return sensorDataRepository.findByHelmetId(helmetId);
+        this.messagingTemplate = messagingTemplate;
     }
 
     @PostMapping
-    public ResponseEntity<SensorData> createSensorData(@RequestBody SensorData sensorData) {
-        SensorData savedData = sensorDataRepository.save(sensorData);
+    public String addSensorData(@RequestBody SensorData data) {
+        sensorDataRepository.save(data);
 
-        // Check for alert
-        if (sensorData.isAlert()) {
-            Optional<Worker> workerOpt = workerRepository.findByHelmetId(sensorData.getHelmetId());
-            workerOpt.ifPresent(worker -> {
-                // Build Alert object
-                Alert alert = new Alert();
-                alert.setHelmetId(sensorData.getHelmetId());
-                alert.setMessage("🚨 ALERT! Worker " + worker.getName() +
-                        " (Helmet: " + worker.getHelmetId() + ") has triggered an emergency!");
-                alert.setLat(sensorData.getLat());
-                alert.setLng(sensorData.getLng());
-                alert.setAlertType("sensor-triggered");
-                alert.setTimestamp(LocalDateTime.now());
+        if (data.isAlert()) {
+            Alert alert = new Alert();
+            alert.setHelmetId(data.getHelmetId());
+            alert.setMessage("🚨 Sensor triggered alert");
+            alert.setLat(data.getLat());
+            alert.setLng(data.getLng());
+            alert.setCreatedAt(LocalDateTime.now());
 
-                // 🔴 Reuse NotificationService for SMS
-                notificationService.sendAlertSms(worker, alert);
-            });
+            Alert saved = alertRepository.save(alert);
+
+            // notify
+            notificationService.notifyFamily(saved);
+            notificationService.notifyCoworkers(saved);
+
+            // broadcast
+            messagingTemplate.convertAndSend("/topic/alerts", saved);
+
+            return "✅ Sensor data saved and alert created.";
         }
-
-        return ResponseEntity.ok(savedData);
+        return "ℹ️ Sensor data saved.";
     }
 }
