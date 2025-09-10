@@ -1,15 +1,10 @@
-package com.smarthelmet.helmet_backend.controller;
+package com.example.helmetbackend.controller;
 
-import com.smarthelmet.helmet_backend.dto.AlertRequest;
-import com.smarthelmet.helmet_backend.model.Alert;
-import com.smarthelmet.helmet_backend.model.Worker;
-import com.smarthelmet.helmet_backend.repository.AlertRepository;
-import com.smarthelmet.helmet_backend.repository.WorkerRepository;
-import com.smarthelmet.helmet_backend.service.NotificationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.helmetbackend.model.Alert;
+import com.example.helmetbackend.repository.AlertRepository;
+import com.example.helmetbackend.service.NotificationService;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -18,82 +13,49 @@ import java.util.Optional;
 @RequestMapping("/alerts")
 public class AlertController {
 
-    @Autowired
-    private AlertRepository alertRepository;
+    private final AlertRepository alertRepository;
+    private final NotificationService notificationService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    @Autowired
-    private WorkerRepository workerRepository;
+    public AlertController(AlertRepository alertRepository,
+                           NotificationService notificationService,
+                           SimpMessagingTemplate messagingTemplate) {
+        this.alertRepository = alertRepository;
+        this.notificationService = notificationService;
+        this.messagingTemplate = messagingTemplate;
+    }
 
-    @Autowired
-    private NotificationService notificationService;
-
-    @Autowired
-    private SimpMessagingTemplate messagingTemplate;
-
-    // 🔴 Create new alert
-    // 🟢 Acknowledge alert
     @PostMapping
-    public String sendAlert(@RequestBody AlertRequest alertRequest) {
-        return workerRepository.findByHelmetId(alertRequest.getHelmetId())
-                .map(worker -> {
-                    Alert alert = new Alert();
-                    alert.setHelmetId(alertRequest.getHelmetId());
-                    alert.setMessage(alertRequest.getMessage());
-                    alert.setAlertType("fall"); // or dynamic
-                    alert.setLat(alertRequest.getLat());
-                    alert.setLng(alertRequest.getLng());
-                    alert.setTimestamp(LocalDateTime.now());
-                    alertRepository.save(alert);
+    public String createAlert(@RequestBody Alert alert) {
+        alert.setCreatedAt(LocalDateTime.now());
+        Alert saved = alertRepository.save(alert);
 
-                    // 🔴 Send SMS to family + co-workers
-                    notificationService.sendAlertSms(worker, alert);
+        // notify
+        notificationService.notifyFamily(saved);
+        notificationService.notifyCoworkers(saved);
 
-                    // 🔴 WebSocket push
-                    messagingTemplate.convertAndSend("/topic/alerts", alert);
+        // broadcast
+        messagingTemplate.convertAndSend("/topic/alerts", saved);
 
-                    return "✅ Alert sent.";
-                })
-                .orElse("❌ Worker with helmetId " + alertRequest.getHelmetId() + " not found.");
+        return "✅ Alert created and notifications sent.";
     }
 
     @PostMapping("/{id}/ack")
     public String acknowledgeAlert(@PathVariable Long id) {
-        Optional<Alert> alertOpt = alertRepository.findById(id);
+        Optional<Alert> optional = alertRepository.findById(id);
+        if (optional.isPresent()) {
+            Alert alert = optional.get();
+            alert.setAcknowledged(true);
+            alert.setAcknowledgedAt(LocalDateTime.now());
+            Alert saved = alertRepository.save(alert);
 
-        if (alertOpt.isEmpty()) {
-            return "❌ Alert not found.";
+            // notify + broadcast updated alert
+            notificationService.notifyCoworkers(saved);
+            notificationService.notifyFamily(saved);
+            messagingTemplate.convertAndSend("/topic/alerts", saved);
+
+            return "✅ Alert acknowledged.";
         }
-
-        Alert alert = alertOpt.get();
-        alert.setAcknowledged(true);
-        alert.setAcknowledgedAt(LocalDateTime.now());
-        alertRepository.save(alert);
-
-        Optional<Worker> workerOpt = workerRepository.findByHelmetId(alert.getHelmetId());
-
-        if(workerOpt.isPresent()) {
-            Worker worker = workerOpt.get();
-
-            // Notify all other workers
-            List<Worker> allWorkers = workerRepository.findAll();
-            for(Worker w : allWorkers) {
-                if(!w.getHelmetId().equals(worker.getHelmetId())) {
-                    notificationService.sendSafeSms(w, alert);
-                }
-            }
-
-            // Notify family of the worker who acknowledged
-            notificationService.sendFamilySms(worker, alert);
-
-            // WebSocket push
-            messagingTemplate.convertAndSend("/topic/alerts",
-                    "✅ Worker " + worker.getName() + " (Helmet: " + worker.getHelmetId() + ") is SAFE.");
-
-            return "✅ Alert acknowledged, all workers and family notified.";
-        }
-
-        return "⚠️ Worker not found for this alert.";
+        return "❌ Alert not found.";
     }
-
-
 }
