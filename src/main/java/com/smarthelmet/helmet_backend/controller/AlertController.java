@@ -46,7 +46,17 @@ public class AlertController {
                     alertRepository.save(alert);
 
                     // 🔴 Send SMS to family + co-workers
+                    // 🔴 Send SMS to family
                     notificationService.sendAlertSms(worker, alert);
+
+                    // 🔴 Also notify all co-workers
+                    List<Worker> allWorkers = workerRepository.findAll();
+                    for (Worker w : allWorkers) {
+                        if (!w.getHelmetId().equals(worker.getHelmetId())) {
+                        notificationService.sendAlertSms(w, alert);
+                        }
+                    }
+
 
                     // 🔴 WebSocket push
                     messagingTemplate.convertAndSend("/topic/alerts", alert);
