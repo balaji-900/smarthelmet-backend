@@ -1,55 +1,62 @@
 package com.smarthelmet.helmet_backend.controller;
 
-import com.smarthelmet.helmet_backend.model.SensorData;
 import com.smarthelmet.helmet_backend.model.Alert;
+import com.smarthelmet.helmet_backend.model.SensorData;
+import com.smarthelmet.helmet_backend.model.Worker;
 import com.smarthelmet.helmet_backend.repository.SensorDataRepository;
-import com.smarthelmet.helmet_backend.repository.AlertRepository;
+import com.smarthelmet.helmet_backend.repository.WorkerRepository;
 import com.smarthelmet.helmet_backend.service.NotificationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/sensor-data")
 public class SensorDataController {
 
     private final SensorDataRepository sensorDataRepository;
-    private final AlertRepository alertRepository;
+    private final WorkerRepository workerRepository;
     private final NotificationService notificationService;
-    private final SimpMessagingTemplate messagingTemplate;
 
-    @Autowired
     public SensorDataController(SensorDataRepository sensorDataRepository,
-                                AlertRepository alertRepository,
-                                NotificationService notificationService,
-                                SimpMessagingTemplate messagingTemplate) {
+                                WorkerRepository workerRepository,
+                                NotificationService notificationService) {
         this.sensorDataRepository = sensorDataRepository;
-        this.alertRepository = alertRepository;
+        this.workerRepository = workerRepository;
         this.notificationService = notificationService;
-        this.messagingTemplate = messagingTemplate;
+    }
+
+    @GetMapping("/{helmetId}")
+    public List<SensorData> getSensorDataByHelmetId(@PathVariable String helmetId) {
+        return sensorDataRepository.findByHelmetId(helmetId);
     }
 
     @PostMapping
-    public SensorData receiveData(@RequestBody SensorData data) {
-        SensorData savedData = sensorDataRepository.save(data);
+    public ResponseEntity<SensorData> createSensorData(@RequestBody SensorData sensorData) {
+        SensorData savedData = sensorDataRepository.save(sensorData);
 
-        if (data.isAlert()) {
-            Alert alert = new Alert();
-            alert.setHelmetId(data.getHelmetId());
-            alert.setMessage("Sensor triggered alert");
-            alert.setLat(data.getLat());
-            alert.setLng(data.getLng());
+        // Check for alert
+        if (sensorData.isAlert()) {
+            Optional<Worker> workerOpt = workerRepository.findByHelmetId(sensorData.getHelmetId());
+            workerOpt.ifPresent(worker -> {
+                // Build Alert object
+                Alert alert = new Alert();
+                alert.setHelmetId(sensorData.getHelmetId());
+                alert.setMessage("🚨 ALERT! Worker " + worker.getName() +
+                        " (Helmet: " + worker.getHelmetId() + ") has triggered an emergency!");
+                alert.setLat(sensorData.getLat());
+                alert.setLng(sensorData.getLng());
+                alert.setAlertType("sensor-triggered");
+                alert.setTimestamp(LocalDateTime.now());
 
-            Alert savedAlert = alertRepository.save(alert);
-
-            // Broadcast new alert
-            messagingTemplate.convertAndSend("/topic/alerts", savedAlert);
-
-            // Send notifications
-            notificationService.notifyFamily(savedAlert);
-            notificationService.notifyCoworkers(savedAlert);
+                // 🔴 Reuse NotificationService for SMS
+                notificationService.sendAlertSms(worker, alert);
+            });
         }
 
-        return savedData;
+        return ResponseEntity.ok(savedData);
     }
 }
