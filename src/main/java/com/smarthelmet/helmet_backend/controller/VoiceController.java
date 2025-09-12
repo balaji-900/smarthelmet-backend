@@ -13,7 +13,7 @@ public class VoiceController {
     public String handleVoiceAlert() {
         // TwiML response (what Twilio says on the call)
         VoiceResponse response = new VoiceResponse.Builder()
-                .say(new Say.Builder("🚨 Emergency Alert! A worker has not acknowledged their helmet alert. Please take immediate action.").voice(Say.Voice.ALICE).build())
+                .say(new Say.Builder(" Emergency Alert! A worker has not acknowledged their helmet alert. Please take immediate action.").voice(Say.Voice.ALICE).build())
                 .build();
 
         return response.toXml();
