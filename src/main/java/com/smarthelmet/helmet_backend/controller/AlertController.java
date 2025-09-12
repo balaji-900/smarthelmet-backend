@@ -65,6 +65,12 @@ public class AlertController {
                 })
                 .orElse("❌ Worker with helmetId " + alertRequest.getHelmetId() + " not found.");
     }
+    // 🟢 Get all alerts history
+    @GetMapping
+    public List<Alert> getAllAlerts() {
+    return alertRepository.findAll();
+}
+
 
     @PostMapping("/{id}/ack")
     public String acknowledgeAlert(@PathVariable Long id) {
