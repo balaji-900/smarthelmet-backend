@@ -20,7 +20,7 @@ public class NotificationService {
     private final TwilioConfig twilioConfig;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    @Value("${voice.call.delay-seconds:600}") // default 10 minutes if not set
+    @Value("${voice.call.delay-seconds:60}") // default 10 minutes if not set
     private int voiceCallDelaySeconds;
 
     // Store scheduled tasks so we can cancel them on ack
