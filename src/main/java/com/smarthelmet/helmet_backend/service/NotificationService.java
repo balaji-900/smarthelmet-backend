@@ -33,10 +33,11 @@ public class NotificationService {
 
     // 🚨 Alert SMS
     public void sendAlertSms(Worker worker, Alert alert) {
+        String h="https://www.google.com/maps?q=" + alert.getLat + "," + alert.getLng;
         String sms = "🚨 ALERT!\nWorker: " + worker.getName() +
                 "\nHelmet: " + worker.getHelmetId() +
                 "\nMessage: " + alert.getMessage() +
-                "\nLocation: " + alert.getLat() + "," + alert.getLng();
+                "\nLocation: " + h;
 
         sendSms(worker.getFamilyPhoneNumber(), sms);
 
@@ -46,10 +47,11 @@ public class NotificationService {
 
     // 🚨 Alert SMS to co-workers
     public void sendAlertToWorker(Worker worker, Alert alert) {
+        String h="https://www.google.com/maps?q=" + alert.getLat + "," + alert.getLng;
         String sms = "🚨 ALERT!\nWorker: " + worker.getName() +
                 "\nHelmet: " + worker.getHelmetId() +
                 "\nMessage: " + alert.getMessage() +
-                "\nLocation: " + alert.getLat() + "," + alert.getLng();
+                "\nLocation: " +h;
 
         sendSms(worker.getPhoneNumber(), sms);
     }
