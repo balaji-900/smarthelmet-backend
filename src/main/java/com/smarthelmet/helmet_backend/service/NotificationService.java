@@ -20,7 +20,7 @@ public class NotificationService {
     private final TwilioConfig twilioConfig;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
 
-    @Value("${voice.call.delay-seconds}")
+    @Value("${voice.call.delay-seconds:600}") // default 10 minutes if not set
     private int voiceCallDelaySeconds;
 
     // Store scheduled tasks so we can cancel them on ack
@@ -44,7 +44,7 @@ public class NotificationService {
         scheduleVoiceCall(worker, alert);
     }
 
-    // 🚨 Alert SMS to worker (not family)
+    // 🚨 Alert SMS to co-workers
     public void sendAlertToWorker(Worker worker, Alert alert) {
         String sms = "🚨 ALERT!\nWorker: " + worker.getName() +
                 "\nHelmet: " + worker.getHelmetId() +
@@ -54,7 +54,7 @@ public class NotificationService {
         sendSms(worker.getPhoneNumber(), sms);
     }
 
-    // ✅ Safe SMS
+    // ✅ Safe SMS (to worker who was alerted)
     public void sendSafeSms(Worker worker, Alert alert) {
         String sms = "✅ SAFE\nWorker: " + worker.getName() +
                 "\nHelmet: " + worker.getHelmetId() +
@@ -70,7 +70,8 @@ public class NotificationService {
     public void sendFamilySms(Worker worker, Alert alert) {
         String familyNumber = worker.getFamilyPhoneNumber();
         if (familyNumber != null && !familyNumber.isEmpty()) {
-            String message = "✅ Worker " + worker.getName() + " (Helmet: " + worker.getHelmetId() + ") is SAFE now.";
+            String message = "✅ Worker " + worker.getName() +
+                    " (Helmet: " + worker.getHelmetId() + ") is SAFE now.";
             sendSms(familyNumber, message);
         }
 
@@ -81,8 +82,10 @@ public class NotificationService {
     // Core method to send SMS
     private void sendSms(String toPhone, String body) {
         if (toPhone != null && !toPhone.startsWith("+")) {
-            toPhone = "+91" + toPhone;
+            toPhone = "+91" + toPhone; // default India country code
         }
+        if (toPhone == null || toPhone.isEmpty()) return;
+
         Message.creator(
                 new PhoneNumber(toPhone),
                 new PhoneNumber(twilioConfig.getTrialNumber()),
@@ -104,6 +107,7 @@ public class NotificationService {
 
         // Save so we can cancel later if ack arrives
         scheduledCalls.put(worker.getHelmetId(), future);
+        System.out.println("⏳ Voice call scheduled in " + voiceCallDelaySeconds + "s for helmetId: " + worker.getHelmetId());
     }
 
     // 🔔 Actually make Twilio voice call
@@ -114,6 +118,8 @@ public class NotificationService {
                 familyNumber = "+91" + familyNumber;
             }
 
+            if (familyNumber == null || familyNumber.isEmpty()) return;
+
             Call.creator(
                     new PhoneNumber(familyNumber),
                     new PhoneNumber(twilioConfig.getTrialNumber()),
@@ -121,6 +127,7 @@ public class NotificationService {
             ).create();
 
             System.out.println("📞 Voice call placed to " + familyNumber);
+
         } catch (Exception e) {
             e.printStackTrace();
         }
