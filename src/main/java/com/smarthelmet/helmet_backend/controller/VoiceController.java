@@ -9,13 +9,20 @@ import com.twilio.twiml.voice.Say;
 @RestController
 public class VoiceController {
 
-    @GetMapping(value = "/voice/alert", produces = MediaType.APPLICATION_XML_VALUE)
+    @PostMapping(value = "/voice/alert", produces = MediaType.APPLICATION_XML_VALUE)
     public String handleVoiceAlert() {
-        // TwiML response (what Twilio says on the call)
         VoiceResponse response = new VoiceResponse.Builder()
-                .say(new Say.Builder("Emergency Alert! A worker has not acknowledged their helmet alert. Please take immediate action.").voice(Say.Voice.ALICE).build())
+                .say(new Say.Builder("Emergency Alert! A worker has not acknowledged their helmet alert. Please take immediate action.")
+                        .voice(Say.Voice.ALICE)
+                        .build())
                 .build();
 
         return response.toXml();
+    }
+
+    // (Optional) keep GET for testing in browser
+    @GetMapping(value = "/voice/alert", produces = MediaType.APPLICATION_XML_VALUE)
+    public String testVoiceAlert() {
+        return handleVoiceAlert();
     }
 }
