@@ -46,10 +46,10 @@ public class NotificationService {
     }
 
     // 🚨 Alert SMS to co-workers
-    public void sendAlertToWorker(Worker worker, Alert alert) {
+    public void sendAlertToWorker(Worker worker, Alert alert,Worker ww) {
         String h="https://www.google.com/maps?q=" + alert.getLat() + "," + alert.getLng();
-        String sms = "🚨 ALERT!\nWorker: " + worker.getName() +
-                "\nHelmet: " + worker.getHelmetId() +
+        String sms = "🚨 ALERT!\nWorker: " + ww.getName() +
+                "\nHelmet: " + ww.getHelmetId() +
                 "\nMessage: " + alert.getMessage() +
                 "\nLocation: " +h;
 
@@ -57,9 +57,9 @@ public class NotificationService {
     }
 
     // ✅ Safe SMS (to worker who was alerted)
-    public void sendSafeSms(Worker worker, Alert alert) {
-        String sms = "✅ SAFE\nWorker: " + worker.getName() +
-                "\nHelmet: " + worker.getHelmetId() +
+    public void sendSafeSms(Worker worker, Alert alert, Worker ww) {
+        String sms = "✅ SAFE\nWorker: " + ww.getName() +
+                "\nHelmet: " + ww.getHelmetId() +
                 "\nAcknowledged at: " + alert.getAcknowledgedAt();
 
         sendSms(worker.getPhoneNumber(), sms);
