@@ -53,7 +53,7 @@ public class AlertController {
                     List<Worker> allWorkers = workerRepository.findAll();
                     for (Worker w : allWorkers) {
                         if (!w.getHelmetId().equals(worker.getHelmetId())) {
-                        notificationService.sendAlertToWorker(w, alert);
+                        notificationService.sendAlertToWorker(w, alert,worker);
                         }
                     }
 
@@ -96,7 +96,7 @@ public String acknowledgeAlert(@PathVariable String helmetId) {
         List<Worker> allWorkers = workerRepository.findAll();
         for (Worker w : allWorkers) {
             if (!w.getHelmetId().equals(worker.getHelmetId())) {
-                notificationService.sendSafeSms(w, alert);
+                notificationService.sendSafeSms(w, alert,worker);
             }
         }
 
