@@ -125,7 +125,7 @@ public class NotificationService {
             Call.creator(
                     new PhoneNumber(familyNumber),
                     new PhoneNumber(twilioConfig.getTrialNumber()),
-                    new URI("https://helmet-backend-production.up.railway.app/voice/alert")
+                    new URI("https://smarthelmet-backend-production.up.railway.app/voice/alert")
             ).create();
 
             System.out.println("📞 Voice call placed to " + familyNumber);
