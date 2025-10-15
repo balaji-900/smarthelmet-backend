@@ -12,13 +12,10 @@ public class VoiceController {
 
     @PostMapping(value = "/voice/alert", produces = MediaType.APPLICATION_XML_VALUE)
     public String handleVoiceAlert() {
-        VoiceResponse response = new VoiceResponse.Builder()
-                .say(new Say.Builder("Emergency Alert! A worker has not acknowledged their helmet alert. Please take immediate action.")
-                        .voice(Say.Voice.ALICE)
-                        .build())
-                .build();
-
-        return response.toXml();
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
+               "<Response>" +
+               "<Say voice=\"alice\">Emergency Alert! A worker has not acknowledged their helmet alert. Please take immediate action.</Say>" +
+               "</Response>";
     }
 
     // (Optional) keep GET for testing in browser
